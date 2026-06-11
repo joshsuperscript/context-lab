@@ -31,8 +31,8 @@ export async function POST(req: NextRequest) {
 
   const file = await createContextFile({
     path, title, section, priority, is_expansion, author_hints, bus_factor,
-    status: 'requested', assigned_to: null, submitted_by: null, submitted_at: null,
-    reviewed_by: null, reviewed_at: null, review_note: null, linear_ticket_id: null,
+    status: 'requested', source_page_id: null, assigned_to: null, submitted_by: null,
+    submitted_at: null, reviewed_by: null, reviewed_at: null, review_note: null, linear_ticket_id: null,
   })
 
   // Create Linear ticket in background

@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
       section,
       status: 'requested',
       priority: 'medium',
+      source_page_id: null,
       assigned_to: null,
       submitted_by: userEmail,
       submitted_at: null,
