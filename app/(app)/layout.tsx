@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import PersonalMdSidebar from '@/components/PersonalMdSidebar'
 import NavLink from '@/components/NavLink'
+import Logo from '@/components/Logo'
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
@@ -13,9 +14,8 @@ export default async function AppLayout({ children }: { children: React.ReactNod
       {/* Left nav — sharp, clean */}
       <nav className="w-48 shrink-0 bg-white border-r border-black flex flex-col py-5 px-4">
         <Link href="/" className="flex items-center gap-2.5 mb-8">
-          {/* SS mark — blue square with white cutout */}
-          <div className="w-5 h-5 bg-[#00A3FF] shrink-0" />
-          <span className="font-semibold text-sm text-black tracking-tight">Context Hub</span>
+          <Logo size={22} />
+          <span className="font-semibold text-sm text-black tracking-tight">Context Lab</span>
         </Link>
 
         <div className="flex flex-col border-l border-[#E1E1E1] pl-0 flex-1 gap-0">

@@ -3,6 +3,7 @@
 import { signIn } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
+import Logo from '@/components/Logo'
 
 function LoginForm() {
   const searchParams = useSearchParams()
@@ -12,8 +13,8 @@ function LoginForm() {
     <div className="min-h-screen flex items-center justify-center bg-[#F9F9F9]">
       <div className="bg-white border border-black p-10 w-full max-w-sm text-center">
         <div className="mb-8">
-          <div className="w-8 h-8 bg-[#00A3FF] mx-auto mb-5" />
-          <h1 className="text-lg font-semibold text-black tracking-tight">Context Hub</h1>
+          <div className="flex justify-center mb-5"><Logo size={40} /></div>
+          <h1 className="text-lg font-semibold text-black tracking-tight">Context Lab</h1>
           <p className="text-xs text-[#999] mt-1 font-mono uppercase tracking-widest">Superscript Health</p>
         </div>
 

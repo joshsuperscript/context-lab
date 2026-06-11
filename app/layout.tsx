@@ -3,7 +3,7 @@ import { Toaster } from "sonner";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Context Hub — Superscript",
+  title: "Context Lab — Superscript",
   description: "Context repository authoring and review",
 };
 
