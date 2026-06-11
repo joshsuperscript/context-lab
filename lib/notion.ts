@@ -1,8 +1,5 @@
 import { Client } from '@notionhq/client'
-import type {
-  PageObjectResponse,
-  QueryDataSourceParameters,
-} from '@notionhq/client/build/src/api-endpoints'
+import type { PageObjectResponse } from '@notionhq/client/build/src/api-endpoints'
 
 const notion = new Client({ auth: process.env.NOTION_TOKEN })
 
@@ -126,12 +123,31 @@ function dbId() {
   return id
 }
 
+// Use the REST API directly — the v5 SDK's dataSources.query calls a different
+// endpoint that doesn't work for regular Notion databases.
+async function notionDbQuery(databaseId: string, body: Record<string, unknown>) {
+  const res = await fetch(`https://api.notion.com/v1/databases/${databaseId}/query`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.NOTION_TOKEN}`,
+      'Notion-Version': '2022-06-28',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const err = await res.json()
+    throw new Error(`Notion query error: ${err.message}`)
+  }
+  return res.json()
+}
+
 export async function queryContextFiles(filters?: {
   section?: string
   status?: string
   assigned_to?: string
 }): Promise<ContextFile[]> {
-  const andFilters: NonNullable<QueryDataSourceParameters['filter']>[] = []
+  const andFilters: unknown[] = []
 
   if (filters?.section) {
     andFilters.push({ property: 'Section', select: { equals: filters.section } })
@@ -154,9 +170,8 @@ export async function queryContextFiles(filters?: {
   let cursor: string | undefined
 
   do {
-    const resp = await notion.dataSources.query({
-      data_source_id: dbId(),
-      filter: filter as QueryDataSourceParameters['filter'],
+    const resp = await notionDbQuery(dbId(), {
+      filter,
       sorts: [
         { property: 'Priority', direction: 'ascending' },
         { property: 'Name', direction: 'ascending' },
@@ -165,9 +180,9 @@ export async function queryContextFiles(filters?: {
       page_size: 100,
     })
     for (const r of resp.results) {
-      if ('properties' in r) results.push(r as PageObjectResponse)
+      if (r.properties) results.push(r as PageObjectResponse)
     }
-    cursor = resp.has_more ? (resp.next_cursor ?? undefined) : undefined
+    cursor = resp.has_more ? resp.next_cursor ?? undefined : undefined
   } while (cursor)
 
   return results.map(pageToContextFile)
@@ -186,7 +201,7 @@ export async function createContextFile(
   data: Omit<ContextFile, 'id' | 'created_at' | 'updated_at'>
 ): Promise<ContextFile> {
   const page = await notion.pages.create({
-    parent: { type: 'data_source_id', data_source_id: dbId() },
+    parent: { database_id: dbId() },
     properties: toProperties(data) as Parameters<typeof notion.pages.create>[0]['properties'],
   })
   return pageToContextFile(page as PageObjectResponse)
