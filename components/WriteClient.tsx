@@ -116,43 +116,39 @@ export default function WriteClient({
           </div>
         </div>
 
-        <div className="flex-1 flex items-center justify-center bg-gray-50">
+        <div className="flex-1 flex items-center justify-center bg-[#F9F9F9]">
           <div className="max-w-lg w-full px-6">
-            <h2 className="text-xl font-semibold text-gray-900 text-center mb-2">How do you want to write this?</h2>
-            <p className="text-sm text-gray-500 text-center mb-10">
-              You can talk through what you know and we'll turn it into a draft, or write directly in markdown.
+            <h2 className="text-xl font-semibold text-black text-center mb-2 tracking-tight">How do you want to write this?</h2>
+            <p className="text-xs text-[#999] text-center mb-10 font-mono">
+              Talk through what you know and we'll draft it — or write directly in markdown.
             </p>
 
             <div className="grid grid-cols-2 gap-4">
               <button
                 onClick={() => setPhase('interviewing')}
-                className="flex flex-col items-center gap-3 p-7 bg-white rounded-2xl border-2 border-[#00A3FF] hover:bg-blue-50 transition-colors group"
+                className="flex flex-col items-center gap-4 p-8 bg-white border-2 border-[#00A3FF] hover:bg-[#00A3FF] hover:text-white transition-colors group"
               >
-                <div className="w-10 h-10 rounded-full bg-[#00A3FF]/10 flex items-center justify-center group-hover:bg-[#00A3FF]/20">
-                  <MessageCircle size={20} className="text-[#00A3FF]" />
-                </div>
+                <MessageCircle size={22} className="text-[#00A3FF] group-hover:text-white" />
                 <div className="text-center">
-                  <p className="text-sm font-semibold text-gray-900">Interview me</p>
-                  <p className="text-xs text-gray-500 mt-1">Talk through what you know — we'll write the draft</p>
+                  <p className="text-sm font-semibold">Interview me</p>
+                  <p className="text-xs text-[#666] mt-1 group-hover:text-white/80">Talk through it — we'll write the draft</p>
                 </div>
               </button>
 
               <button
                 onClick={() => setPhase('editing')}
-                className="flex flex-col items-center gap-3 p-7 bg-white rounded-2xl border-2 border-gray-200 hover:border-gray-300 transition-colors group"
+                className="flex flex-col items-center gap-4 p-8 bg-white border-2 border-[#E1E1E1] hover:border-black transition-colors group"
               >
-                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-gray-200">
-                  <PenLine size={20} className="text-gray-600" />
-                </div>
+                <PenLine size={22} className="text-[#666] group-hover:text-black" />
                 <div className="text-center">
-                  <p className="text-sm font-semibold text-gray-900">Write manually</p>
-                  <p className="text-xs text-gray-500 mt-1">Open the editor with the template pre-filled</p>
+                  <p className="text-sm font-semibold text-black">Write manually</p>
+                  <p className="text-xs text-[#666] mt-1">Open editor with template</p>
                 </div>
               </button>
             </div>
 
             {file.author_hints?.length > 0 && (
-              <p className="text-center text-xs text-gray-400 mt-8">
+              <p className="text-center text-xs text-[#999] mt-8 font-mono">
                 Suggested authors: {file.author_hints.join(', ')}
               </p>
             )}
@@ -211,7 +207,7 @@ export default function WriteClient({
           <button
             onClick={() => save()}
             disabled={saving}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-40"
+            className="flex items-center gap-1.5 px-4 py-1.5 text-xs border border-[#E1E1E1] hover:border-black text-[#666] hover:text-black rounded-full disabled:opacity-40 transition-colors"
           >
             <Save size={12} /> {saving ? 'Saving…' : 'Save draft'}
           </button>
@@ -219,7 +215,7 @@ export default function WriteClient({
             <button
               onClick={submitForReview}
               disabled={submitting}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[#00A3FF] text-white rounded-lg hover:bg-[#0091e6] disabled:opacity-40"
+              className="flex items-center gap-1.5 px-4 py-1.5 text-xs bg-black text-white rounded-full hover:bg-[#00A3FF] disabled:opacity-40 transition-colors"
             >
               <Send size={12} /> {submitting ? 'Submitting…' : 'Submit for review'}
             </button>

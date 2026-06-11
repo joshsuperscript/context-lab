@@ -7,7 +7,6 @@ import { AlertTriangle, ExternalLink, ChevronDown } from 'lucide-react'
 import type { ContextFile } from '@/lib/notion'
 
 const NOTION_WORKSPACE = process.env.NEXT_PUBLIC_NOTION_WORKSPACE
-
 function notionUrl(pageId: string): string {
   const id = pageId.replace(/-/g, '')
   return NOTION_WORKSPACE
@@ -44,22 +43,22 @@ export default function FileCard({
   const canWrite2 = file.status !== 'published' && file.status !== 'stale'
 
   return (
-    <div className="flex items-center gap-3 px-4 py-3 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition-colors">
+    <div className="flex items-center gap-3 px-4 py-3 bg-white border border-[#E1E1E1] hover:border-black transition-colors">
       {/* Path + title */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 mb-0.5">
-          <span className="text-xs text-gray-400 font-mono">{section}/</span>
-          <span className="text-sm font-medium text-gray-900 truncate">{name}</span>
+          <span className="text-xs text-[#999] font-mono tracking-tight">{section}/</span>
+          <span className="text-sm font-medium text-black truncate">{name}</span>
           {file.bus_factor && (
             <span title="Bus-factor risk">
-              <AlertTriangle size={12} className="text-orange-500 shrink-0" />
+              <AlertTriangle size={12} className="text-[#FF8B4A] shrink-0" />
             </span>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-500 truncate">{file.title}</span>
+          <span className="text-xs text-[#666] truncate">{file.title}</span>
           {file.is_expansion && (
-            <span className="text-xs text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded">Expansion</span>
+            <span className="text-xs text-[#AF5EFF] bg-[#AF5EFF]/10 px-1.5 py-0.5">Expansion</span>
           )}
         </div>
       </div>
@@ -76,18 +75,18 @@ export default function FileCard({
           <div className="relative inline-block text-left">
             <button
               onClick={() => setAssignOpen(!assignOpen)}
-              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 border border-gray-200 rounded-md px-2 py-1"
+              className="flex items-center gap-1 text-xs text-[#666] hover:text-black border border-[#E1E1E1] hover:border-black px-2 py-1 transition-colors"
             >
               {file.assigned_to ? file.assigned_to.split('@')[0] : 'Assign'}
               <ChevronDown size={11} />
             </button>
             {assignOpen && (
-              <div className="absolute right-0 mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg z-20 py-1 max-h-48 overflow-y-auto">
+              <div className="absolute right-0 mt-1 w-44 bg-white border border-black z-20 py-1 max-h-48 overflow-y-auto">
                 {staff.map((s) => (
                   <button
                     key={s.email}
                     onClick={() => { onAssign(file.id, s.email); setAssignOpen(false) }}
-                    className="w-full text-left px-3 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                    className="w-full text-left px-3 py-1.5 text-xs text-black hover:bg-[#F1F1F1]"
                   >
                     {s.name}
                   </button>
@@ -96,7 +95,7 @@ export default function FileCard({
             )}
           </div>
         ) : file.assigned_to ? (
-          <span className={`text-xs ${isMine ? 'text-[#00A3FF] font-medium' : 'text-gray-500'}`}>
+          <span className={`text-xs ${isMine ? 'text-[#00A3FF] font-medium' : 'text-[#666]'}`}>
             {isMine ? 'You' : file.assigned_to.split('@')[0]}
           </span>
         ) : canClaim ? (
@@ -107,7 +106,7 @@ export default function FileCard({
             Claim
           </button>
         ) : (
-          <span className="text-xs text-gray-400">Unassigned</span>
+          <span className="text-xs text-[#999]">Unassigned</span>
         )}
       </div>
 
@@ -118,7 +117,7 @@ export default function FileCard({
             href={`https://linear.app/issue/${file.linear_ticket_id}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-gray-400 hover:text-gray-600"
+            className="text-[#999] hover:text-black"
           >
             <ExternalLink size={13} />
           </a>
@@ -126,7 +125,7 @@ export default function FileCard({
         {isAdmin && file.status === 'published' && onMarkStale && (
           <button
             onClick={() => onMarkStale(file.id)}
-            className="text-xs px-2 py-1 text-amber-600 border border-amber-200 rounded-md hover:bg-amber-50"
+            className="text-xs px-3 py-1 text-[#FF8B4A] border border-[#FF8B4A]/40 hover:border-[#FF8B4A] rounded-full transition-colors"
           >
             Stale
           </button>
@@ -134,7 +133,7 @@ export default function FileCard({
         {canWrite && canWrite2 && (
           <Link
             href={`/write/${file.id}`}
-            className="text-xs px-2.5 py-1 bg-[#00A3FF] text-white rounded-md hover:bg-[#0091e6] transition-colors"
+            className="text-xs px-4 py-1.5 bg-black text-white rounded-full hover:bg-[#00A3FF] transition-colors"
           >
             Write
           </Link>
@@ -144,7 +143,7 @@ export default function FileCard({
             href={notionUrl(file.source_page_id ?? file.id)}
             target="_blank"
             rel="noopener noreferrer"
-            className="text-xs text-gray-400 hover:text-gray-600"
+            className="text-[#999] hover:text-black"
             title="Open in Notion"
           >
             <ExternalLink size={13} />

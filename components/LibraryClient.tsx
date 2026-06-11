@@ -93,33 +93,35 @@ export default function LibraryClient({
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">Library</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{files.length} context files</p>
+          <h1 className="text-xl font-semibold text-black tracking-tight">Library</h1>
+          <p className="text-xs text-[#999] mt-0.5 font-mono">{files.length} context files</p>
         </div>
         {isAdmin && (
           <button
             onClick={() => router.push('/library/new')}
-            className="flex items-center gap-1.5 px-3 py-2 bg-[#00A3FF] text-white text-sm rounded-lg hover:bg-[#0091e6]"
+            className="flex items-center gap-1.5 px-4 py-2 bg-black text-white text-xs rounded-full hover:bg-[#00A3FF] transition-colors"
           >
-            <Plus size={14} /> Add file
+            <Plus size={13} /> Add file
           </button>
         )}
       </div>
 
-      {/* View tabs */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit mb-4">
+      {/* View tabs — sharp underline style */}
+      <div className="flex border-b border-[#E1E1E1] mb-5 gap-0">
         {TABS.map((t) => (
           <button
             key={t.key}
             onClick={() => setTab(t.key)}
-            className={`px-3 py-1.5 text-xs rounded-md transition-colors flex items-center gap-1.5 ${
-              tab === t.key ? 'bg-white text-gray-900 shadow-sm font-medium' : 'text-gray-500 hover:text-gray-700'
+            className={`px-4 py-2.5 text-xs transition-colors flex items-center gap-2 border-b-2 -mb-px ${
+              tab === t.key
+                ? 'border-[#00A3FF] text-[#00A3FF] font-medium'
+                : 'border-transparent text-[#666] hover:text-black'
             }`}
           >
             {t.label}
             {t.key !== 'all' && (
-              <span className={`text-xs px-1.5 py-0.5 rounded-full ${
-                tab === t.key ? 'bg-gray-100 text-gray-600' : 'bg-gray-200 text-gray-500'
+              <span className={`text-xs px-1.5 py-0.5 rounded-full font-mono ${
+                tab === t.key ? 'bg-[#00A3FF]/10 text-[#00A3FF]' : 'bg-[#F1F1F1] text-[#999]'
               }`}>
                 {counts[t.key as keyof typeof counts] ?? 0}
               </span>
@@ -130,23 +132,25 @@ export default function LibraryClient({
 
       {/* Section + mine filters */}
       <div className="flex flex-wrap gap-2 mb-5">
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg overflow-x-auto">
+        <div className="flex gap-1 overflow-x-auto">
           {SECTIONS.map((s) => (
             <button
               key={s}
               onClick={() => setSection(s)}
-              className={`px-2.5 py-1 text-xs rounded-md transition-colors whitespace-nowrap ${
-                section === s ? 'bg-white text-gray-900 shadow-sm font-medium' : 'text-gray-500 hover:text-gray-700'
+              className={`px-3 py-1 text-xs transition-colors whitespace-nowrap rounded-full border ${
+                section === s
+                  ? 'bg-black text-white border-black'
+                  : 'border-[#E1E1E1] text-[#666] hover:border-black hover:text-black'
               }`}
             >
-              {s === 'all' ? 'All sections' : s}
+              {s === 'all' ? 'All' : s}
             </button>
           ))}
         </div>
         <button
           onClick={() => setMine(!mine)}
-          className={`px-2.5 py-1.5 text-xs rounded-lg border transition-colors ${
-            mine ? 'bg-[#00A3FF]/10 border-[#00A3FF]/30 text-[#00A3FF] font-medium' : 'border-gray-200 text-gray-500 hover:border-gray-300'
+          className={`px-3 py-1 text-xs rounded-full border transition-colors ${
+            mine ? 'bg-[#00A3FF] text-white border-[#00A3FF]' : 'border-[#E1E1E1] text-[#666] hover:border-black'
           }`}
         >
           Mine only
@@ -155,9 +159,9 @@ export default function LibraryClient({
 
       {/* File list */}
       {filtered.length === 0 ? (
-        <p className="text-sm text-gray-400 text-center py-12">No files match your filters.</p>
+        <p className="text-sm text-[#999] text-center py-12">No files match your filters.</p>
       ) : (
-        <div className="space-y-2">
+        <div className="space-y-px border border-[#E1E1E1]">
           {filtered.map((f) => (
             <FileCard
               key={f.id}

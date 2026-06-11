@@ -10,27 +10,28 @@ export default async function AppLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="flex h-screen overflow-hidden">
-      {/* Left nav */}
-      <nav className="w-52 shrink-0 bg-white border-r border-gray-200 flex flex-col py-5 px-3">
-        <Link href="/" className="flex items-center gap-2 px-2 mb-8">
-          <div className="w-6 h-6 bg-[#00A3FF] rounded-md" />
-          <span className="font-semibold text-sm text-gray-900">Context Hub</span>
+      {/* Left nav — sharp, clean */}
+      <nav className="w-48 shrink-0 bg-white border-r border-black flex flex-col py-5 px-4">
+        <Link href="/" className="flex items-center gap-2.5 mb-8">
+          {/* SS mark — blue square with white cutout */}
+          <div className="w-5 h-5 bg-[#00A3FF] shrink-0" />
+          <span className="font-semibold text-sm text-black tracking-tight">Context Hub</span>
         </Link>
 
-        <div className="flex flex-col gap-0.5 flex-1">
+        <div className="flex flex-col border-l border-[#E1E1E1] pl-0 flex-1 gap-0">
           <NavLink href="/dashboard" exact>Dashboard</NavLink>
           <NavLink href="/library">Library</NavLink>
           <NavLink href="/admin">Admin</NavLink>
         </div>
 
-        <div className="px-2 pt-4 border-t border-gray-100">
-          <p className="text-xs text-gray-500 truncate">{session.user.email}</p>
+        <div className="pt-4 border-t border-[#E1E1E1]">
+          <p className="text-xs text-[#999] truncate font-mono">{session.user.email}</p>
         </div>
       </nav>
 
       {/* Main + optional sidebar */}
       <div className="flex flex-1 overflow-hidden">
-        <main className="flex-1 overflow-y-auto">{children}</main>
+        <main className="flex-1 overflow-y-auto bg-[#F9F9F9]">{children}</main>
         <PersonalMdSidebar />
       </div>
     </div>

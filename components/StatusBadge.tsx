@@ -1,22 +1,22 @@
 import { cn } from '@/lib/utils'
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  requested:       { label: 'Requested',    className: 'bg-gray-100 text-gray-600' },
-  in_progress:     { label: 'In Progress',  className: 'bg-blue-50 text-blue-700' },
-  draft_submitted: { label: 'In Review',    className: 'bg-yellow-50 text-yellow-700' },
-  approved:        { label: 'Approved',     className: 'bg-green-50 text-green-700' },
-  published:       { label: 'Published',    className: 'bg-green-100 text-green-800 font-medium' },
-  stale:           { label: 'Stale',        className: 'bg-amber-50 text-amber-700' },
+  requested:       { label: 'Requested',    className: 'bg-[#F1F1F1] text-[#666]' },
+  in_progress:     { label: 'In Progress',  className: 'bg-[#00A3FF]/10 text-[#00A3FF]' },
+  draft_submitted: { label: 'In Review',    className: 'bg-[#FF8B4A]/10 text-[#FF8B4A]' },
+  approved:        { label: 'Approved',     className: 'bg-[#01CE91]/10 text-[#01CE91]' },
+  published:       { label: 'Published',    className: 'bg-[#01CE91]/15 text-[#01CE91] font-medium' },
+  stale:           { label: 'Stale',        className: 'bg-[#FF8B4A]/10 text-[#FF8B4A]' },
 }
 
 const PRIORITY_CONFIG: Record<string, { label: string; className: string }> = {
-  high:   { label: 'High',   className: 'bg-red-50 text-red-700' },
-  medium: { label: 'Medium', className: 'bg-orange-50 text-orange-700' },
-  low:    { label: 'Low',    className: 'bg-gray-50 text-gray-500' },
+  high:   { label: 'High',   className: 'bg-[#FF426F]/10 text-[#FF426F]' },
+  medium: { label: 'Medium', className: 'bg-[#FF8B4A]/10 text-[#FF8B4A]' },
+  low:    { label: 'Low',    className: 'bg-[#F1F1F1] text-[#999]' },
 }
 
 export function StatusBadge({ status }: { status: string }) {
-  const config = STATUS_CONFIG[status] ?? { label: status, className: 'bg-gray-100 text-gray-600' }
+  const config = STATUS_CONFIG[status] ?? { label: status, className: 'bg-[#F1F1F1] text-[#666]' }
   return (
     <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-xs', config.className)}>
       {config.label}

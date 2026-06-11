@@ -1,26 +1,67 @@
 @import "tailwindcss";
 
+/* ── Suisse Intl ──────────────────────────────────────────────────────────── */
+@font-face { font-family: "Suisse Intl"; src: url("/fonts/SuisseIntl-Regular.ttf") format("truetype"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Suisse Intl"; src: url("/fonts/SuisseIntl-RegularItalic.ttf") format("truetype"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Suisse Intl"; src: url("/fonts/SuisseIntl-Medium.ttf") format("truetype"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Suisse Intl"; src: url("/fonts/SuisseIntl-SemiBold.ttf") format("truetype"); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "Suisse Intl"; src: url("/fonts/SuisseIntl-Bold.ttf") format("truetype"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Suisse Intl Mono"; src: url("/fonts/SuisseIntlMono-Regular.otf") format("opentype"); font-weight: 400; font-style: normal; font-display: swap; }
+
+/* ── Design system tokens ────────────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --ss-blue:        #00A3FF;
+  --ss-blue-dark:   #0C74B9;
+  --ss-black:       #000000;
+  --ss-grey-1:      #333333;
+  --ss-grey-2:      #666666;
+  --ss-grey-3:      #999999;
+  --ss-grey-4:      #CCCCCC;
+  --ss-grey-5:      #E1E1E1;
+  --ss-grey-6:      #F1F1F1;
+  --ss-paper:       #F9F9F9;
+  --ss-white:       #FFFFFF;
+  --ss-green:       #01CE91;
+  --ss-orange:      #FF8B4A;
+  --ss-red:         #FF426F;
+  --ss-purple:      #AF5EFF;
+
+  --font-sans:      "Suisse Intl", "Helvetica Neue", Arial, sans-serif;
+  --font-mono:      "Suisse Intl Mono", "JetBrains Mono", ui-monospace, monospace;
 }
 
+/* ── Tailwind v4 theme extensions ────────────────────────────────────────── */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans:       var(--font-sans);
+  --font-mono:       var(--font-mono);
+
+  --color-ss-blue:   #00A3FF;
+  --color-ss-dark:   #0C74B9;
+  --color-ss-black:  #000000;
+  --color-ss-g1:     #333333;
+  --color-ss-g2:     #666666;
+  --color-ss-g3:     #999999;
+  --color-ss-g4:     #CCCCCC;
+  --color-ss-g5:     #E1E1E1;
+  --color-ss-g6:     #F1F1F1;
+  --color-ss-paper:  #F9F9F9;
+  --color-ss-white:  #FFFFFF;
+  --color-ss-green:  #01CE91;
+  --color-ss-orange: #FF8B4A;
+  --color-ss-red:    #FF426F;
+  --color-ss-purple: #AF5EFF;
+
+  --radius-pill:     76px;
+  --radius-sharp:    0px;
+  --radius-xs:       2px;
+  --radius-sm:       5px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ── Base ────────────────────────────────────────────────────────────────── */
+html, body {
+  background: var(--ss-paper);
+  color: var(--ss-black);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }

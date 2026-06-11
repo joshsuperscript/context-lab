@@ -18,10 +18,10 @@ export default function NavLink({ href, children, exact }: NavLinkProps) {
     <Link
       href={href}
       className={cn(
-        'px-2 py-1.5 rounded-lg text-sm transition-colors',
+        'px-3 py-1.5 text-sm transition-colors block',
         active
-          ? 'bg-[#00A3FF]/10 text-[#00A3FF] font-medium'
-          : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+          ? 'text-[#00A3FF] font-medium border-l-2 border-[#00A3FF] -ml-px pl-[calc(0.75rem-2px)]'
+          : 'text-[#666] hover:text-black'
       )}
     >
       {children}
