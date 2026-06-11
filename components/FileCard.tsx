@@ -130,9 +130,9 @@ export default function FileCard({
             Write
           </Link>
         )}
-        {(isAdmin || file.status === 'published') && (
+        {(isAdmin || file.status === 'published' || file.source_page_id) && (
           <a
-            href={`https://notion.so/${file.id.replace(/-/g, '')}`}
+            href={`https://notion.so/${(file.source_page_id ?? file.id).replace(/-/g, '')}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-gray-400 hover:text-gray-600"
