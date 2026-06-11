@@ -1,22 +1,64 @@
 import { auth } from '@/lib/auth'
-import { getContextFile, getPageMarkdown, queryContextFiles } from '@/lib/notion'
+import { getContextFile, getPageMarkdown, queryContextFiles, ContextFile } from '@/lib/notion'
 import { getTemplate } from '@/lib/templates'
 import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
+const FOUNDATION_SECTIONS = ['company', 'products']
+const CHARS_PER_DOC = 3000
+
+async function loadWriterContext(currentFileId: string, currentSection: string): Promise<string> {
+  const blocks: string[] = []
+  try {
+    // Foundation: company + products so the writer knows the full product context
+    const foundationFiles: ContextFile[] = []
+    for (const sec of FOUNDATION_SECTIONS) {
+      const files = await queryContextFiles({ section: sec, status: 'published' })
+      foundationFiles.push(...files.filter((f) => f.id !== currentFileId))
+    }
+    const foundationContent = await Promise.all(
+      foundationFiles.slice(0, 12).map(async (f) => {
+        const md = await getPageMarkdown(f.source_page_id ?? f.id).catch(() => '')
+        return md.trim() ? `### ${f.title}\n${md.slice(0, CHARS_PER_DOC)}` : null
+      })
+    )
+    const foundationBlock = foundationContent.filter(Boolean).join('\n\n')
+    if (foundationBlock) blocks.push(`## Company & Product Foundation\n\n${foundationBlock}`)
+
+    // Section-specific published docs — the reference for tone and format
+    if (!FOUNDATION_SECTIONS.includes(currentSection)) {
+      const sectionFiles = await queryContextFiles({ section: currentSection, status: 'published' })
+      const sectionContent = await Promise.all(
+        sectionFiles
+          .filter((f) => f.id !== currentFileId)
+          .map(async (f) => {
+            const md = await getPageMarkdown(f.source_page_id ?? f.id).catch(() => '')
+            return md.trim() ? `### ${f.title}\n${md.slice(0, CHARS_PER_DOC)}` : null
+          })
+      )
+      const sectionBlock = sectionContent.filter(Boolean).join('\n\n')
+      if (sectionBlock) blocks.push(`## Existing ${currentSection} docs (match this tone and depth)\n\n${sectionBlock}`)
+    }
+  } catch { /* ok */ }
+  return blocks.join('\n\n---\n\n')
+}
+
 const WRITER_SYSTEM = `You are a senior technical writer for Superscript Health.
-Based on the interview transcript provided, write a complete, publication-ready context document.
+You have been pre-loaded with the company's knowledge base. Use it freely — you don't need the interview to tell you what Skylight is, how the EHR integrations work, or what the company does. That context is already here.
+
+Your job: synthesize the interview transcript into a complete, publication-ready context document, using the knowledge base to fill in background and the interview to fill in the specific, tacit details only the person would know.
 
 ## Rules
 
-- Write in a direct, informative voice — like a senior engineer wrote it after a long conversation, not like meeting notes.
-- Preserve the person's exact terminology and mental model. If they said "fold-in", use "fold-in". Never normalize jargon away.
-- For sections the interview didn't cover, write exactly: <!-- TODO: [specific thing needed here] -->
-- Never invent content. If something wasn't said, placeholder it.
-- Do not add preamble, meta-commentary, or "here is the document" headers. Start directly with # Title.
-- Include this single line at the very bottom: *Drafted from interview — review before publishing.*
+- Write in a direct, informative voice — like a senior engineer wrote it after a long conversation.
+- Preserve the person's exact terminology. If they said "fold-in", use "fold-in". Never normalize jargon.
+- You MAY use facts from the knowledge base to fill in context that wasn't covered in the interview — this is the point of having it.
+- For sections where neither the interview nor the knowledge base has enough detail: write <!-- TODO: [specific thing needed] -->
+- Never invent specifics (numbers, names, dates). Only invent if it's obvious general context.
+- Start directly with # Title. No preamble.
+- Add at the very bottom: *Drafted from interview — review before publishing.*
 
 ## Template structure
 
@@ -25,6 +67,12 @@ Based on the interview transcript provided, write a complete, publication-ready 
 ## Interview transcript
 
 {transcript}
+
+---
+
+## KNOWLEDGE BASE
+
+{knowledge_base}
 `
 
 export async function POST(req: NextRequest) {
@@ -32,29 +80,16 @@ export async function POST(req: NextRequest) {
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { fileId, history } = await req.json()
-
   if (!history?.length) return NextResponse.json({ error: 'No interview history' }, { status: 400 })
 
   const file = await getContextFile(fileId)
   if (!file) return NextResponse.json({ error: 'File not found' }, { status: 404 })
 
-  // Load related docs for additional context
-  let relatedContext = ''
-  try {
-    const published = await queryContextFiles({ section: file.section, status: 'published' })
-    const others = published.filter((f) => f.id !== fileId).slice(0, 2)
-    const contents = await Promise.all(
-      others.map(async (f) => {
-        const md = await getPageMarkdown(f.source_page_id ?? f.id).catch(() => '')
-        return md ? `### ${f.title} (published reference)\n${md.slice(0, 800)}` : null
-      })
-    )
-    relatedContext = contents.filter(Boolean).join('\n\n')
-  } catch { /* ok */ }
+  const [template, knowledgeBase] = await Promise.all([
+    Promise.resolve(getTemplate(file.section, file.title, file.author_hints?.[0])),
+    loadWriterContext(fileId, file.section),
+  ])
 
-  const template = getTemplate(file.section, file.title, file.author_hints?.[0])
-
-  // Format transcript from history
   const transcript = history
     .map((m: { role: string; content: string }) =>
       `${m.role === 'user' ? 'Staff' : 'Interviewer'}: ${m.content.replace(/<DRAFT_READY>/g, '').trim()}`
@@ -64,10 +99,8 @@ export async function POST(req: NextRequest) {
 
   const systemPrompt = WRITER_SYSTEM
     .replace('{template}', template)
-    .replace(
-      '{transcript}',
-      transcript + (relatedContext ? `\n\n## Related published documents for reference\n${relatedContext}` : '')
-    )
+    .replace('{transcript}', transcript)
+    .replace('{knowledge_base}', knowledgeBase || '(no published docs yet)')
 
   const response = await anthropic.messages.create({
     model: 'claude-sonnet-4-6',
@@ -82,6 +115,5 @@ export async function POST(req: NextRequest) {
   })
 
   const content = response.content[0].type === 'text' ? response.content[0].text : ''
-
   return NextResponse.json({ content })
 }
