@@ -326,6 +326,9 @@ interface NotionPageStub {
   path: string
 }
 
+// Pages to skip during sync — staff files managed separately via personal.md sidebar
+const SKIP_PAGE_TITLES = new Set(['people', 'People'])
+
 async function walkSection(pageId: string, section: string, prefix: string): Promise<NotionPageStub[]> {
   const stubs: NotionPageStub[] = []
   try {
@@ -333,6 +336,7 @@ async function walkSection(pageId: string, section: string, prefix: string): Pro
     for (const block of resp.results) {
       if (!('type' in block) || block.type !== 'child_page') continue
       const title = block.child_page.title
+      if (SKIP_PAGE_TITLES.has(title)) continue  // skip People and similar
       const slug = title.replace(/\.md$/i, '').replace(/\s+/g, '-').toLowerCase()
       const path = `${prefix}/${slug}.md`
       stubs.push({ notionPageId: block.id, title, section, path })
