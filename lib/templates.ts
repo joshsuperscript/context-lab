@@ -181,6 +181,15 @@ Primary: {author}
 `,
 }
 
+export function getTemplateSectionHeaders(section: string): string[] {
+  const template = SECTION_TEMPLATES[section] ?? SECTION_TEMPLATES['company']
+  return template
+    .split('\n')
+    .filter((l) => l.startsWith('## '))
+    .map((l) => l.replace(/^## /, '').replace(/\{.*?\}/g, '').trim())
+    .filter(Boolean)
+}
+
 export function getTemplate(section: string, title: string, author?: string): string {
   const template = SECTION_TEMPLATES[section] ?? SECTION_TEMPLATES['company']
   return template

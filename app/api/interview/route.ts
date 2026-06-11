@@ -1,41 +1,63 @@
 import { auth } from '@/lib/auth'
 import { getContextFile, getPageMarkdown, queryContextFiles } from '@/lib/notion'
-import { getTemplate } from '@/lib/templates'
+import { getTemplate, getTemplateSectionHeaders } from '@/lib/templates'
 import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-const SYSTEM_PROMPT = `You are an AI writing assistant for Superscript Health's internal context repository.
-You help staff write and improve context documents — either through structured interviews or by answering questions and proposing edits.
+const INTERVIEWER_SYSTEM = `You are an expert knowledge extractor for Superscript Health's internal context repository.
+Your job: extract deep, tacit knowledge from a staff member through a focused interview, then signal when you have enough to write a complete document.
 
-## Your capabilities
-- Ask targeted, specific questions to help the user fill in the document step by step
-- Answer questions about the existing content or related documents
-- Propose specific edits or additions to the current draft
-- When you have content to add to the doc, wrap it in <insert> tags: <insert>\n## Section\ncontent here\n</insert>
+## Rules — non-negotiable
 
-## Rules
-- Be specific, not generic. "What are the 3 most common failure modes of the ALE overnight job?" beats "Tell me about failures"
-- Keep responses concise — one question or one suggestion at a time
-- When proposing an insert, format it as clean markdown ready to paste
-- Use the existing content and related docs to avoid repeating what's already written
-- You have the voice of a knowledgeable colleague, not a generic assistant
+- Ask ONE question at a time. Never bundle two questions in one turn. If you catch yourself doing it, delete the second.
+- Questions are short, specific, and open-ended. Avoid yes/no questions.
+- Follow threads before moving on. If the person says something interesting, go one level deeper before switching topics. A one-sentence answer is almost never complete.
+- Do NOT editorialize, validate, or say "great answer." Receive the answer and ask the next question.
+- Preserve the person's exact terminology. If they say "fold-in" or "ALE retries", use those exact terms — don't translate.
+- Track which template sections you've covered. Bias questions toward gaps.
+- After 6–10 exchanges, when all key sections have at least one solid answer, signal completion.
 
-## Document being written
+## Template sections to cover for this document
+
+{sections}
+
+## Document context
+
 Title: {title}
 Section: {section}
-Template:
-{template}
+Author hints (people with deep knowledge): {hints}
 
-## Current content
+## Existing content (avoid repeating what's here)
+
 {existing}
 
-## Author hints (people with relevant knowledge)
-{hints}
+## Related published docs in this section
 
-## Related published documents in this section
 {related}
+
+## Good follow-up moves
+
+- "Walk me through that — what actually happens step by step?"
+- "What usually goes wrong there?"
+- "What would someone miss if they just read the ticket?"
+- "How do you know when it's working correctly?"
+- "Is there a version of this that's failed? What happened?"
+- "Who else needs to understand this — what do they always get wrong?"
+
+## User controls (honor at any point)
+
+- "skip" / "next question" → move on without pressing the current thread
+- "that's everything" / "done" / "write it" / "generate" → reply with ONLY: <DRAFT_READY>
+- "start over" → acknowledge and ask the opening question fresh
+
+## Completion signal
+
+When you have covered all key sections adequately (or after 8+ exchanges), end your message with exactly this token on its own line:
+<DRAFT_READY>
+
+Do not add anything after <DRAFT_READY>. The frontend will detect it and show the user a "Generate my draft" button.
 `
 
 export async function POST(req: NextRequest) {
@@ -50,39 +72,38 @@ export async function POST(req: NextRequest) {
   const contentPageId = file.source_page_id ?? fileId
   const existingContent = await getPageMarkdown(contentPageId).catch(() => '')
 
-  // Load related published docs for context
   let relatedDocs = ''
   try {
     const published = await queryContextFiles({ section: section || file.section, status: 'published' })
     const others = published.filter((f) => f.id !== fileId).slice(0, 3)
     const contents = await Promise.all(
       others.map(async (f) => {
-        const md = await getPageMarkdown(f.id).catch(() => '')
-        return md ? `### ${f.title}\n${md.slice(0, 1500)}` : null
+        const md = await getPageMarkdown(f.source_page_id ?? f.id).catch(() => '')
+        return md ? `### ${f.title}\n${md.slice(0, 1000)}` : null
       })
     )
-    relatedDocs = contents.filter(Boolean).join('\n\n---\n\n') || 'None yet'
+    relatedDocs = contents.filter(Boolean).join('\n\n---\n\n') || 'None yet in this section'
   } catch {
-    relatedDocs = 'Could not load related docs'
+    relatedDocs = 'Could not load'
   }
 
-  const template = getTemplate(file.section, file.title, file.author_hints?.[0])
-  const systemPrompt = SYSTEM_PROMPT
+  const sections = getTemplateSectionHeaders(file.section)
+  const systemPrompt = INTERVIEWER_SYSTEM
+    .replace('{sections}', sections.map((s) => `- ${s}`).join('\n'))
     .replace('{title}', file.title)
     .replace('{section}', file.section)
-    .replace('{template}', template)
-    .replace('{existing}', existingContent || '(empty — not started yet)')
     .replace('{hints}', file.author_hints.join(', ') || 'None specified')
+    .replace('{existing}', existingContent || '(empty — not started yet)')
     .replace('{related}', relatedDocs)
 
   const messages: Anthropic.MessageParam[] = [
     ...history,
-    { role: 'user', content: message || 'Start the interview for this document.' },
+    { role: 'user', content: message || 'Start the interview — ask your first question.' },
   ]
 
   const stream = await anthropic.messages.stream({
     model: 'claude-sonnet-4-6',
-    max_tokens: 1024,
+    max_tokens: 512,
     system: systemPrompt,
     messages,
   })

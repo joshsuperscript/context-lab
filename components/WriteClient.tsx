@@ -5,13 +5,19 @@ import dynamic from 'next/dynamic'
 import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { StatusBadge, PriorityBadge } from './StatusBadge'
+import InterviewChat from './InterviewChat'
 import AiAssistant from './AiAssistant'
 import type { ContextFile } from '@/lib/notion'
-import { Save, Send, ArrowLeft, MessageCircle, PenLine } from 'lucide-react'
+import { Save, Send, ArrowLeft, MessageCircle, PenLine, Loader2 } from 'lucide-react'
 
 const MDEditor = dynamic(() => import('@uiw/react-md-editor'), { ssr: false })
 
-type WriteMode = 'interview' | 'direct'
+type Phase = 'choosing' | 'interviewing' | 'generating' | 'editing'
+
+interface Message {
+  role: 'user' | 'assistant'
+  content: string
+}
 
 export default function WriteClient({
   file,
@@ -22,23 +28,23 @@ export default function WriteClient({
   initialContent: string
   currentUserEmail: string
 }) {
+  const [phase, setPhase] = useState<Phase>('choosing')
   const [content, setContent] = useState(initialContent)
   const [saving, setSaving] = useState(false)
   const [submitting, setSubmitting] = useState(false)
-  const [mode, setMode] = useState<WriteMode>('interview')
   const router = useRouter()
 
   const insertText = useCallback((text: string) => {
     setContent((prev) => prev + '\n\n' + text)
   }, [])
 
-  async function save() {
+  async function save(textToSave?: string) {
     setSaving(true)
     try {
       const res = await fetch(`/api/files/${file.id}/content`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content: textToSave ?? content }),
       })
       if (!res.ok) throw new Error()
       toast.success('Saved to Notion')
@@ -72,13 +78,31 @@ export default function WriteClient({
     }
   }
 
-  const canSubmit = file.status === 'in_progress' || file.status === 'requested'
+  async function handleInterviewComplete(history: Message[]) {
+    setPhase('generating')
+    try {
+      const res = await fetch('/api/interview/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileId: file.id, history }),
+      })
+      if (!res.ok) throw new Error('Generation failed')
+      const data = await res.json()
+      setContent(data.content)
+      setPhase('editing')
+    } catch {
+      toast.error('Draft generation failed — switching to manual edit')
+      setPhase('editing')
+    }
+  }
 
-  return (
-    <div className="flex flex-col h-screen">
-      {/* Top bar */}
-      <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shrink-0">
-        <div className="flex items-center gap-3">
+  const canSubmit = file.status === 'in_progress' || file.status === 'requested' || file.status === 'stale'
+
+  // ── Phase: choosing ───────────────────────────────────────────────────────
+  if (phase === 'choosing') {
+    return (
+      <div className="flex flex-col h-screen">
+        <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-200 bg-white">
           <button onClick={() => router.back()} className="text-gray-400 hover:text-gray-600">
             <ArrowLeft size={16} />
           </button>
@@ -88,37 +112,108 @@ export default function WriteClient({
               <StatusBadge status={file.status} />
               <PriorityBadge priority={file.priority} />
             </div>
-            <h1 className="text-sm font-semibold text-gray-900 mt-0.5">{file.title}</h1>
+            <h1 className="text-sm font-semibold text-gray-900">{file.title}</h1>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          {/* Mode toggle */}
-          <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
-            <button
-              onClick={() => setMode('interview')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-colors ${
-                mode === 'interview' ? 'bg-white text-gray-900 shadow-sm font-medium' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <MessageCircle size={11} /> Interview me
-            </button>
-            <button
-              onClick={() => setMode('direct')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 text-xs rounded-md transition-colors ${
-                mode === 'direct' ? 'bg-white text-gray-900 shadow-sm font-medium' : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              <PenLine size={11} /> Write directly
-            </button>
-          </div>
+        <div className="flex-1 flex items-center justify-center bg-gray-50">
+          <div className="max-w-lg w-full px-6">
+            <h2 className="text-xl font-semibold text-gray-900 text-center mb-2">How do you want to write this?</h2>
+            <p className="text-sm text-gray-500 text-center mb-10">
+              You can talk through what you know and we'll turn it into a draft, or write directly in markdown.
+            </p>
 
+            <div className="grid grid-cols-2 gap-4">
+              <button
+                onClick={() => setPhase('interviewing')}
+                className="flex flex-col items-center gap-3 p-7 bg-white rounded-2xl border-2 border-[#00A3FF] hover:bg-blue-50 transition-colors group"
+              >
+                <div className="w-10 h-10 rounded-full bg-[#00A3FF]/10 flex items-center justify-center group-hover:bg-[#00A3FF]/20">
+                  <MessageCircle size={20} className="text-[#00A3FF]" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-gray-900">Interview me</p>
+                  <p className="text-xs text-gray-500 mt-1">Talk through what you know — we'll write the draft</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => setPhase('editing')}
+                className="flex flex-col items-center gap-3 p-7 bg-white rounded-2xl border-2 border-gray-200 hover:border-gray-300 transition-colors group"
+              >
+                <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-gray-200">
+                  <PenLine size={20} className="text-gray-600" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-semibold text-gray-900">Write manually</p>
+                  <p className="text-xs text-gray-500 mt-1">Open the editor with the template pre-filled</p>
+                </div>
+              </button>
+            </div>
+
+            {file.author_hints?.length > 0 && (
+              <p className="text-center text-xs text-gray-400 mt-8">
+                Suggested authors: {file.author_hints.join(', ')}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ── Phase: interviewing ───────────────────────────────────────────────────
+  if (phase === 'interviewing') {
+    return (
+      <div className="flex flex-col h-screen">
+        <InterviewChat
+          fileId={file.id}
+          section={file.section}
+          fileTitle={file.title}
+          onDraftReady={handleInterviewComplete}
+          onSwitchToManual={() => setPhase('editing')}
+        />
+      </div>
+    )
+  }
+
+  // ── Phase: generating ─────────────────────────────────────────────────────
+  if (phase === 'generating') {
+    return (
+      <div className="flex flex-col h-screen items-center justify-center bg-white gap-4">
+        <Loader2 size={28} className="animate-spin text-[#00A3FF]" />
+        <p className="text-sm font-medium text-gray-700">Writing your draft…</p>
+        <p className="text-xs text-gray-400">This takes about 10–15 seconds</p>
+      </div>
+    )
+  }
+
+  // ── Phase: editing ────────────────────────────────────────────────────────
+  return (
+    <div className="flex flex-col h-screen">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-6 py-3 bg-white border-b border-gray-200 shrink-0">
+        <div className="flex items-center gap-3">
+          <button onClick={() => setPhase('choosing')} className="text-gray-400 hover:text-gray-600">
+            <ArrowLeft size={16} />
+          </button>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400 font-mono">{file.path}</span>
+              <StatusBadge status={file.status} />
+              <PriorityBadge priority={file.priority} />
+            </div>
+            <h1 className="text-sm font-semibold text-gray-900">{file.title}</h1>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
           <button
-            onClick={save}
+            onClick={() => save()}
             disabled={saving}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50 disabled:opacity-40"
           >
-            <Save size={12} /> {saving ? 'Saving…' : 'Save'}
+            <Save size={12} /> {saving ? 'Saving…' : 'Save draft'}
           </button>
           {canSubmit && (
             <button
@@ -132,49 +227,23 @@ export default function WriteClient({
         </div>
       </div>
 
-      {/* Main content area */}
-      {mode === 'interview' ? (
-        // Interview mode: AI assistant dominates, editor below
-        <div className="flex flex-1 overflow-hidden">
-          <div className="w-1/2 border-r border-gray-200 overflow-hidden flex flex-col">
-            <div className="px-4 py-2 bg-gray-50 border-b border-gray-200">
-              <p className="text-xs text-gray-500">AI Assistant — answers are inserted into your doc</p>
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <AiAssistant
-                fileId={file.id}
-                section={file.section}
-                onInsert={insertText}
-                embedded
-              />
-            </div>
-          </div>
-          <div className="flex-1 overflow-hidden" data-color-mode="light">
-            <MDEditor
-              value={content}
-              onChange={(v) => setContent(v ?? '')}
-              height="100%"
-              preview="live"
-            />
-          </div>
-        </div>
-      ) : (
-        // Direct mode: full-width editor, AI assistant as floating button
-        <div className="flex-1 overflow-hidden" data-color-mode="light">
-          <MDEditor
-            value={content}
-            onChange={(v) => setContent(v ?? '')}
-            height="100%"
-            preview="live"
-          />
-          <AiAssistant
-            fileId={file.id}
-            section={file.section}
-            onInsert={insertText}
-            embedded={false}
-          />
-        </div>
-      )}
+      {/* Editor + floating AI assistant */}
+      <div className="flex-1 overflow-hidden" data-color-mode="light">
+        <MDEditor
+          value={content}
+          onChange={(v) => setContent(v ?? '')}
+          height="100%"
+          preview="live"
+        />
+      </div>
+
+      {/* Floating AI assistant (edit helper, not interviewer) */}
+      <AiAssistant
+        fileId={file.id}
+        section={file.section}
+        onInsert={insertText}
+        embedded={false}
+      />
     </div>
   )
 }
