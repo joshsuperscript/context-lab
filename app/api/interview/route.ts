@@ -47,7 +47,8 @@ export async function POST(req: NextRequest) {
   const file = await getContextFile(fileId)
   if (!file) return NextResponse.json({ error: 'File not found' }, { status: 404 })
 
-  const existingContent = await getPageMarkdown(fileId).catch(() => '')
+  const contentPageId = file.source_page_id ?? fileId
+  const existingContent = await getPageMarkdown(contentPageId).catch(() => '')
 
   // Load related published docs for context
   let relatedDocs = ''

@@ -15,8 +15,9 @@ export default async function WritePage({ params }: { params: Promise<{ id: stri
   const admin = isApprover(email)
   if (file.assigned_to !== email && !admin) redirect('/library')
 
-  // Content lives in the page body of the Notion database row
-  let initialContent = await getPageMarkdown(id).catch(() => '')
+  // Read from source_page_id (original Content Library page) if present, otherwise the tracker row
+  const contentPageId = file.source_page_id ?? id
+  let initialContent = await getPageMarkdown(contentPageId).catch(() => '')
   if (!initialContent) {
     initialContent = getTemplate(file.section, file.title, file.author_hints?.[0])
   }

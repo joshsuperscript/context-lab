@@ -31,6 +31,7 @@ export async function POST() {
         section: stub.section,
         status: 'requested',
         priority: 'medium',
+        source_page_id: stub.notionPageId,  // link to original Content Library page
         assigned_to: null,
         submitted_by: null,
         submitted_at: null,

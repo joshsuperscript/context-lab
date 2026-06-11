@@ -16,7 +16,8 @@ export type ContextFileStatus =
 export type ContextFilePriority = 'high' | 'medium' | 'low'
 
 export interface ContextFile {
-  id: string              // Notion page ID — also the document's own page
+  id: string              // Tracker row page ID
+  source_page_id: string | null  // Original Content Library page ID (if synced from Notion)
   path: string
   title: string
   section: string
@@ -71,6 +72,7 @@ function pageToContextFile(page: PageObjectResponse): ContextFile {
   const hintsRaw = getText(page, 'Author Hints')
   return {
     id: page.id,
+    source_page_id: getText(page, 'Source Page ID') || null,
     path: getText(page, 'Path'),
     title: getText(page, 'Name'),
     section: getSelect(page, 'Section'),
@@ -113,6 +115,7 @@ function toProperties(data: Partial<ContextFile>): Record<string, unknown> {
   if (data.is_expansion !== undefined) props['Is Expansion'] = { checkbox: data.is_expansion }
   if (data.bus_factor !== undefined) props['Bus Factor'] = { checkbox: data.bus_factor }
   if (data.author_hints !== undefined) props['Author Hints'] = { rich_text: rt(data.author_hints.join(', ')) }
+  if ('source_page_id' in data) props['Source Page ID'] = { rich_text: rt(data.source_page_id ?? '') }
   return props
 }
 

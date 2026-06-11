@@ -12,8 +12,9 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: 
   const file = await getContextFile(id)
   if (!file) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  // The file's Notion page IS the tracking row — content lives in its page body
-  await updatePageContent(id, content)
+  // Write to source_page_id (original Content Library page) if present, otherwise the tracker row
+  const contentPageId = file.source_page_id ?? id
+  await updatePageContent(contentPageId, content)
 
   return NextResponse.json({ ok: true })
 }
