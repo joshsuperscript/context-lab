@@ -15,9 +15,15 @@ export default async function WritePage({ params }: { params: Promise<{ id: stri
   const admin = isApprover(email)
   if (file.assigned_to !== email && !admin) redirect('/library')
 
-  // Read from source_page_id (original Content Library page) if present, otherwise the tracker row
-  const contentPageId = file.source_page_id ?? id
-  let initialContent = await getPageMarkdown(contentPageId).catch(() => '')
+  // 1. Try tracker row first — this is the in-progress draft space
+  let initialContent = await getPageMarkdown(id).catch(() => '')
+
+  // 2. If no draft yet, fall back to the source page (published/existing content as reference)
+  if (!initialContent && file.source_page_id) {
+    initialContent = await getPageMarkdown(file.source_page_id).catch(() => '')
+  }
+
+  // 3. If nothing, use the section template
   if (!initialContent) {
     initialContent = getTemplate(file.section, file.title, file.author_hints?.[0])
   }

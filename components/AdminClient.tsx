@@ -41,15 +41,8 @@ export default function AdminClient({
   async function approve(file: ContextFile) {
     setProcessing(true)
     try {
-      const res = await fetch(`/api/files/${file.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status: 'published',
-          reviewed_by: reviewerEmail,
-          reviewed_at: new Date().toISOString(),
-        }),
-      })
+      // Dedicated approve route: copies draft from tracker row to source page, then marks published
+      const res = await fetch(`/api/files/${file.id}/approve`, { method: 'POST' })
       if (!res.ok) throw new Error()
       setPending((prev) => prev.filter((f) => f.id !== file.id))
       setSelected(null)
@@ -157,20 +150,23 @@ export default function AdminClient({
                   {selected.submitted_at ? new Date(selected.submitted_at).toLocaleString() : 'N/A'}
                 </p>
               </div>
-              {selected.id && (
-                <a
-                  href={`https://notion.so/${selected.id.replace(/-/g, '')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600"
-                >
-                  <ExternalLink size={12} /> View in Notion
-                </a>
-              )}
+              <div className="flex flex-col items-end gap-1">
+                {selected.source_page_id && (
+                  <a
+                    href={`https://notion.so/${selected.source_page_id.replace(/-/g, '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600"
+                  >
+                    <ExternalLink size={12} /> Current published version
+                  </a>
+                )}
+              </div>
             </div>
 
-            {/* Content preview */}
-            <div className="bg-gray-50 rounded-xl border border-gray-200 p-5 mb-6">
+            {/* Draft content preview — reads from tracker row */}
+            <div className="bg-gray-50 rounded-xl border border-gray-200 p-5 mb-6 max-h-96 overflow-y-auto">
+              <p className="text-xs text-gray-400 mb-3 font-medium uppercase tracking-wide">Draft content</p>
               <NotionPageViewer notionPageId={selected.id} />
             </div>
 
