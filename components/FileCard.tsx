@@ -6,6 +6,15 @@ import { StatusBadge, PriorityBadge } from '@/components/StatusBadge'
 import { AlertTriangle, ExternalLink, ChevronDown } from 'lucide-react'
 import type { ContextFile } from '@/lib/notion'
 
+const NOTION_WORKSPACE = process.env.NEXT_PUBLIC_NOTION_WORKSPACE
+
+function notionUrl(pageId: string): string {
+  const id = pageId.replace(/-/g, '')
+  return NOTION_WORKSPACE
+    ? `https://www.notion.so/${NOTION_WORKSPACE}/${id}`
+    : `https://notion.so/${id}`
+}
+
 interface FileCardProps {
   file: ContextFile
   currentUserEmail?: string
@@ -132,7 +141,7 @@ export default function FileCard({
         )}
         {(isAdmin || file.status === 'published' || file.source_page_id) && (
           <a
-            href={`https://notion.so/${(file.source_page_id ?? file.id).replace(/-/g, '')}`}
+            href={notionUrl(file.source_page_id ?? file.id)}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-gray-400 hover:text-gray-600"
