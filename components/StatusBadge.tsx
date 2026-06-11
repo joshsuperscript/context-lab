@@ -6,6 +6,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   draft_submitted: { label: 'In Review',    className: 'bg-yellow-50 text-yellow-700' },
   approved:        { label: 'Approved',     className: 'bg-green-50 text-green-700' },
   published:       { label: 'Published',    className: 'bg-green-100 text-green-800 font-medium' },
+  stale:           { label: 'Stale',        className: 'bg-amber-50 text-amber-700' },
 }
 
 const PRIORITY_CONFIG: Record<string, { label: string; className: string }> = {

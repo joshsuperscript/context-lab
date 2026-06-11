@@ -11,6 +11,7 @@ export type ContextFileStatus =
   | 'draft_submitted'
   | 'approved'
   | 'published'
+  | 'stale'
 
 export type ContextFilePriority = 'high' | 'medium' | 'low'
 
@@ -279,4 +280,80 @@ export async function getPersonalMd(
 
 export async function updatePersonalMd(pageId: string, markdown: string): Promise<void> {
   await updatePageContent(pageId, markdown)
+}
+
+// ─── Staff list (from Notion People section) ──────────────────────────────────
+
+const PEOPLE_PAGE_ID = '37c76413-2439-80e9-8215-e44b64b8038e' // Company/People
+
+export async function getStaffList(): Promise<{ name: string; email: string }[]> {
+  try {
+    const resp = await notion.blocks.children.list({ block_id: PEOPLE_PAGE_ID, page_size: 100 })
+    const childPages = resp.results.filter(
+      (b): b is Extract<typeof b, { type: 'child_page' }> => 'type' in b && b.type === 'child_page'
+    )
+    const staff: { name: string; email: string }[] = []
+    for (const p of childPages) {
+      // Page title is like "joey.md" or "Josh" — strip .md, derive email from first name
+      const raw = p.child_page.title.replace(/\.md$/i, '').trim()
+      const firstName = raw.toLowerCase().replace(/\s+/g, '.')
+      staff.push({ name: raw, email: `${firstName}@superscript.nyc` })
+    }
+    return staff
+  } catch {
+    return []
+  }
+}
+
+// ─── Context Library section walker (for sync) ────────────────────────────────
+
+const CONTEXT_LIBRARY_ID = '37c76413-2439-8028-9fa3-c82e05003012'
+
+const SECTION_NAMES: Record<string, string> = {
+  Company: 'company',
+  Healthcare: 'healthcare',
+  'Go To Market': 'go-to-market',
+  Technology: 'technology',
+  Customers: 'customers',
+  Products: 'products',
+  Design: 'design',
+}
+
+interface NotionPageStub {
+  notionPageId: string
+  title: string
+  section: string
+  path: string
+}
+
+async function walkSection(pageId: string, section: string, prefix: string): Promise<NotionPageStub[]> {
+  const stubs: NotionPageStub[] = []
+  try {
+    const resp = await notion.blocks.children.list({ block_id: pageId, page_size: 100 })
+    for (const block of resp.results) {
+      if (!('type' in block) || block.type !== 'child_page') continue
+      const title = block.child_page.title
+      const slug = title.replace(/\.md$/i, '').replace(/\s+/g, '-').toLowerCase()
+      const path = `${prefix}/${slug}.md`
+      stubs.push({ notionPageId: block.id, title, section, path })
+      const children = await walkSection(block.id, section, `${prefix}/${slug}`)
+      stubs.push(...children)
+    }
+  } catch { /* ignore inaccessible pages */ }
+  return stubs
+}
+
+export async function getContextLibraryStubs(): Promise<NotionPageStub[]> {
+  const all: NotionPageStub[] = []
+  const resp = await notion.blocks.children.list({ block_id: CONTEXT_LIBRARY_ID, page_size: 100 })
+  for (const block of resp.results) {
+    if (!('type' in block) || block.type !== 'child_page') continue
+    const sectionName = block.child_page.title
+    const section = SECTION_NAMES[sectionName]
+    if (!section) continue
+    const prefix = `context/${section}`
+    const children = await walkSection(block.id, section, prefix)
+    all.push(...children)
+  }
+  return all
 }

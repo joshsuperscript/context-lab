@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import { useRouter } from 'next/navigation'
 import { StatusBadge, PriorityBadge } from './StatusBadge'
 import type { ContextFile } from '@/lib/notion'
-import { CheckCircle, XCircle, ExternalLink } from 'lucide-react'
+import { CheckCircle, XCircle, ExternalLink, RefreshCw } from 'lucide-react'
 import NotionPageViewer from './NotionPageViewer'
 
 export default function AdminClient({
@@ -20,7 +20,23 @@ export default function AdminClient({
   const [rejectNote, setRejectNote] = useState('')
   const [showReject, setShowReject] = useState(false)
   const [processing, setProcessing] = useState(false)
+  const [syncing, setSyncing] = useState(false)
   const router = useRouter()
+
+  async function syncNotion() {
+    setSyncing(true)
+    try {
+      const res = await fetch('/api/admin/sync-notion', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      toast.success(`Sync complete — ${data.added} added, ${data.skipped} already tracked`)
+      router.refresh()
+    } catch (e: unknown) {
+      toast.error((e as Error).message || 'Sync failed')
+    } finally {
+      setSyncing(false)
+    }
+  }
 
   async function approve(file: ContextFile) {
     setProcessing(true)
@@ -79,8 +95,21 @@ export default function AdminClient({
       {/* Left: queue */}
       <div className="w-80 shrink-0 border-r border-gray-200 bg-white overflow-y-auto">
         <div className="px-4 py-4 border-b border-gray-200">
-          <h1 className="text-base font-semibold text-gray-900">Review queue</h1>
-          <p className="text-xs text-gray-500 mt-0.5">{pending.length} pending</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-base font-semibold text-gray-900">Review queue</h1>
+              <p className="text-xs text-gray-500 mt-0.5">{pending.length} pending</p>
+            </div>
+            <button
+              onClick={syncNotion}
+              disabled={syncing}
+              title="Sync empty Notion pages into tracker"
+              className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 border border-gray-200 rounded-md px-2 py-1.5 disabled:opacity-40"
+            >
+              <RefreshCw size={11} className={syncing ? 'animate-spin' : ''} />
+              {syncing ? 'Syncing…' : 'Sync'}
+            </button>
+          </div>
         </div>
 
         {pending.length === 0 ? (

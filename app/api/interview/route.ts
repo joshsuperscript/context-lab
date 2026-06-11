@@ -1,50 +1,78 @@
 import { auth } from '@/lib/auth'
-import { getContextFile, getPageMarkdown } from '@/lib/notion'
+import { getContextFile, getPageMarkdown, queryContextFiles } from '@/lib/notion'
 import { getTemplate } from '@/lib/templates'
 import Anthropic from '@anthropic-ai/sdk'
 import { NextRequest, NextResponse } from 'next/server'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-const INTERVIEW_SYSTEM = `You are an expert knowledge-base interviewer for Superscript Health.
-Your job is to help a staff member fill in a specific context document by asking targeted questions.
+const SYSTEM_PROMPT = `You are an AI writing assistant for Superscript Health's internal context repository.
+You help staff write and improve context documents — either through structured interviews or by answering questions and proposing edits.
 
-Rules:
-- Ask ONE focused question at a time
-- Questions should be specific, not generic ("What are the 3 most common reasons a claim gets rejected in ALE?" not "Tell me about failures")
-- When the user answers, acknowledge it briefly, then generate a formatted markdown snippet they can insert directly into the doc
-- Format your markdown snippet in a <insert> tag like: <insert>\n## Section\ncontent here\n</insert>
-- Then ask the next question
-- After 5-7 exchanges, offer to summarize everything as a complete draft section
-- Speak in first person as the interviewer, not as the user
+## Your capabilities
+- Ask targeted, specific questions to help the user fill in the document step by step
+- Answer questions about the existing content or related documents
+- Propose specific edits or additions to the current draft
+- When you have content to add to the doc, wrap it in <insert> tags: <insert>\n## Section\ncontent here\n</insert>
 
-Context doc template to fill in:
+## Rules
+- Be specific, not generic. "What are the 3 most common failure modes of the ALE overnight job?" beats "Tell me about failures"
+- Keep responses concise — one question or one suggestion at a time
+- When proposing an insert, format it as clean markdown ready to paste
+- Use the existing content and related docs to avoid repeating what's already written
+- You have the voice of a knowledgeable colleague, not a generic assistant
+
+## Document being written
+Title: {title}
+Section: {section}
+Template:
 {template}
 
-Existing content so far:
+## Current content
 {existing}
 
-Author hints (people with relevant knowledge):
+## Author hints (people with relevant knowledge)
 {hints}
+
+## Related published documents in this section
+{related}
 `
 
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user?.email) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { fileId, message, history = [] } = await req.json()
+  const { fileId, section, message, history = [] } = await req.json()
 
   const file = await getContextFile(fileId)
   if (!file) return NextResponse.json({ error: 'File not found' }, { status: 404 })
 
-  // Page body IS the current content
   const existingContent = await getPageMarkdown(fileId).catch(() => '')
 
+  // Load related published docs for context
+  let relatedDocs = ''
+  try {
+    const published = await queryContextFiles({ section: section || file.section, status: 'published' })
+    const others = published.filter((f) => f.id !== fileId).slice(0, 3)
+    const contents = await Promise.all(
+      others.map(async (f) => {
+        const md = await getPageMarkdown(f.id).catch(() => '')
+        return md ? `### ${f.title}\n${md.slice(0, 1500)}` : null
+      })
+    )
+    relatedDocs = contents.filter(Boolean).join('\n\n---\n\n') || 'None yet'
+  } catch {
+    relatedDocs = 'Could not load related docs'
+  }
+
   const template = getTemplate(file.section, file.title, file.author_hints?.[0])
-  const systemPrompt = INTERVIEW_SYSTEM
+  const systemPrompt = SYSTEM_PROMPT
+    .replace('{title}', file.title)
+    .replace('{section}', file.section)
     .replace('{template}', template)
     .replace('{existing}', existingContent || '(empty — not started yet)')
     .replace('{hints}', file.author_hints.join(', ') || 'None specified')
+    .replace('{related}', relatedDocs)
 
   const messages: Anthropic.MessageParam[] = [
     ...history,

@@ -9,7 +9,12 @@ export default async function AdminPage() {
 
   if (!isApprover(email)) redirect('/dashboard')
 
-  const pending = await queryContextFiles({ status: 'draft_submitted' })
+  let pending: Awaited<ReturnType<typeof queryContextFiles>> = []
+  try {
+    pending = await queryContextFiles({ status: 'draft_submitted' })
+  } catch (e) {
+    console.error('Notion query failed:', e)
+  }
 
   return <AdminClient pending={pending} reviewerEmail={email} />
 }

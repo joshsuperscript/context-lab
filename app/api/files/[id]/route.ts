@@ -1,6 +1,7 @@
 import { auth } from '@/lib/auth'
 import { getContextFile, updateContextFile } from '@/lib/notion'
 import { updateLinearTicketStatus, updateLinearAssignee } from '@/lib/linear'
+import { notifyAssignment } from '@/lib/slack'
 import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -20,7 +21,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params
   const body = await req.json()
 
-  // Fetch current state
   const current = await getContextFile(id)
   if (!current) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -30,19 +30,33 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     if (key in body) updates[key] = body[key]
   }
 
-  // Auto-set status when claiming
+  // Auto-set status when assigning/claiming
   if ('assigned_to' in updates && updates.assigned_to && current.status === 'requested') {
     updates.status = 'in_progress'
+  }
+  // Clear assignee when marking stale
+  if (updates.status === 'stale' && !('assigned_to' in updates)) {
+    updates.assigned_to = null
   }
 
   const updated = await updateContextFile(id, updates as Parameters<typeof updateContextFile>[1])
 
-  // Sync to Linear
+  // Fire-and-forget side effects
+  const newAssignee = typeof updates.assigned_to === 'string' ? updates.assigned_to : null
+  const assigneeChanged = 'assigned_to' in updates && newAssignee && newAssignee !== current.assigned_to
+
   if (updated.linear_ticket_id) {
     if ('status' in updates) updateLinearTicketStatus(updated.linear_ticket_id, updated.status).catch(console.error)
-    if ('assigned_to' in updates && typeof updates.assigned_to === 'string' && updates.assigned_to) {
-      updateLinearAssignee(updated.linear_ticket_id, updates.assigned_to).catch(console.error)
-    }
+    if (assigneeChanged) updateLinearAssignee(updated.linear_ticket_id, newAssignee!).catch(console.error)
+  }
+
+  if (assigneeChanged) {
+    notifyAssignment({
+      assigneeEmail: newAssignee!,
+      fileTitle: updated.title,
+      fileId: updated.id,
+      appUrl: process.env.NEXT_PUBLIC_APP_URL ?? '',
+    }).catch(console.error)
   }
 
   return NextResponse.json(updated)

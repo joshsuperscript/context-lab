@@ -1,5 +1,5 @@
 import { auth } from '@/lib/auth'
-import { queryContextFiles, isApprover } from '@/lib/notion'
+import { queryContextFiles, isApprover, getStaffList } from '@/lib/notion'
 import LibraryClient from '@/components/LibraryClient'
 
 export default async function LibraryPage() {
@@ -14,6 +14,7 @@ export default async function LibraryPage() {
   }
 
   const admin = isApprover(email)
+  const staff = admin ? await getStaffList().catch(() => []) : []
 
-  return <LibraryClient files={files} currentUserEmail={email} isAdmin={admin} />
+  return <LibraryClient files={files} currentUserEmail={email} isAdmin={admin} staff={staff} />
 }

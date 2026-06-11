@@ -8,42 +8,85 @@ import type { ContextFile } from '@/lib/notion'
 import { Plus } from 'lucide-react'
 
 const SECTIONS = ['all', 'pricing', 'technology', 'customers', 'products', 'healthcare', 'go-to-market', 'design', 'company']
-const STATUSES = ['all', 'requested', 'in_progress', 'draft_submitted', 'published']
+
+type ViewTab = 'all' | 'needs_work' | 'published' | 'stale'
+
+const TABS: { key: ViewTab; label: string }[] = [
+  { key: 'all',        label: 'All' },
+  { key: 'needs_work', label: 'Needs Work' },
+  { key: 'published',  label: 'Published' },
+  { key: 'stale',      label: 'Stale' },
+]
+
+const NEEDS_WORK_STATUSES = new Set(['requested', 'in_progress', 'draft_submitted'])
 
 export default function LibraryClient({
   files: initialFiles,
   currentUserEmail,
   isAdmin,
+  staff = [],
 }: {
   files: ContextFile[]
   currentUserEmail: string
   isAdmin: boolean
+  staff?: { name: string; email: string }[]
 }) {
   const [files, setFiles] = useState(initialFiles)
   const [section, setSection] = useState('all')
-  const [status, setStatus] = useState('all')
+  const [tab, setTab] = useState<ViewTab>('all')
   const [mine, setMine] = useState(false)
   const [, startTransition] = useTransition()
   const router = useRouter()
 
   const filtered = files.filter((f) => {
     if (section !== 'all' && f.section !== section) return false
-    if (status !== 'all' && f.status !== status) return false
+    if (tab === 'needs_work' && !NEEDS_WORK_STATUSES.has(f.status)) return false
+    if (tab === 'published' && f.status !== 'published') return false
+    if (tab === 'stale' && f.status !== 'stale') return false
     if (mine && f.assigned_to !== currentUserEmail) return false
     return true
   })
 
-  async function claim(id: string) {
+  async function patchFile(id: string, body: Record<string, unknown>) {
     const res = await fetch(`/api/files/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ assigned_to: currentUserEmail }),
+      body: JSON.stringify(body),
     })
-    if (!res.ok) { toast.error('Failed to claim'); return }
-    const updated = await res.json()
-    setFiles((prev) => prev.map((f) => (f.id === id ? updated : f)))
-    toast.success('File claimed — head to the editor to start writing')
-    startTransition(() => router.refresh())
+    if (!res.ok) throw new Error('Update failed')
+    return res.json()
+  }
+
+  async function claim(id: string) {
+    try {
+      const updated = await patchFile(id, { assigned_to: currentUserEmail })
+      setFiles((prev) => prev.map((f) => (f.id === id ? updated : f)))
+      toast.success('File claimed')
+      startTransition(() => router.refresh())
+    } catch { toast.error('Failed to claim') }
+  }
+
+  async function assign(id: string, email: string) {
+    try {
+      const updated = await patchFile(id, { assigned_to: email })
+      setFiles((prev) => prev.map((f) => (f.id === id ? updated : f)))
+      toast.success(`Assigned to ${email.split('@')[0]}`)
+      startTransition(() => router.refresh())
+    } catch { toast.error('Failed to assign') }
+  }
+
+  async function markStale(id: string) {
+    try {
+      const updated = await patchFile(id, { status: 'stale', assigned_to: null })
+      setFiles((prev) => prev.map((f) => (f.id === id ? updated : f)))
+      toast.success('Marked as stale')
+    } catch { toast.error('Failed to mark stale') }
+  }
+
+  const counts = {
+    needs_work: files.filter((f) => NEEDS_WORK_STATUSES.has(f.status)).length,
+    published:  files.filter((f) => f.status === 'published').length,
+    stale:      files.filter((f) => f.status === 'stale').length,
   }
 
   return (
@@ -63,35 +106,48 @@ export default function LibraryClient({
         )}
       </div>
 
-      {/* Filters */}
+      {/* View tabs */}
+      <div className="flex gap-1 bg-gray-100 p-1 rounded-lg w-fit mb-4">
+        {TABS.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-3 py-1.5 text-xs rounded-md transition-colors flex items-center gap-1.5 ${
+              tab === t.key ? 'bg-white text-gray-900 shadow-sm font-medium' : 'text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            {t.label}
+            {t.key !== 'all' && (
+              <span className={`text-xs px-1.5 py-0.5 rounded-full ${
+                tab === t.key ? 'bg-gray-100 text-gray-600' : 'bg-gray-200 text-gray-500'
+              }`}>
+                {counts[t.key as keyof typeof counts] ?? 0}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {/* Section + mine filters */}
       <div className="flex flex-wrap gap-2 mb-5">
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
+        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg overflow-x-auto">
           {SECTIONS.map((s) => (
             <button
               key={s}
               onClick={() => setSection(s)}
-              className={`px-2.5 py-1 text-xs rounded-md transition-colors ${section === s ? 'bg-white text-gray-900 shadow-sm font-medium' : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-2.5 py-1 text-xs rounded-md transition-colors whitespace-nowrap ${
+                section === s ? 'bg-white text-gray-900 shadow-sm font-medium' : 'text-gray-500 hover:text-gray-700'
+              }`}
             >
               {s === 'all' ? 'All sections' : s}
             </button>
           ))}
         </div>
-
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-lg">
-          {STATUSES.map((s) => (
-            <button
-              key={s}
-              onClick={() => setStatus(s)}
-              className={`px-2.5 py-1 text-xs rounded-md transition-colors ${status === s ? 'bg-white text-gray-900 shadow-sm font-medium' : 'text-gray-500 hover:text-gray-700'}`}
-            >
-              {s === 'all' ? 'All statuses' : s.replace('_', ' ')}
-            </button>
-          ))}
-        </div>
-
         <button
           onClick={() => setMine(!mine)}
-          className={`px-2.5 py-1.5 text-xs rounded-lg border transition-colors ${mine ? 'bg-[#00A3FF]/10 border-[#00A3FF]/30 text-[#00A3FF] font-medium' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}
+          className={`px-2.5 py-1.5 text-xs rounded-lg border transition-colors ${
+            mine ? 'bg-[#00A3FF]/10 border-[#00A3FF]/30 text-[#00A3FF] font-medium' : 'border-gray-200 text-gray-500 hover:border-gray-300'
+          }`}
         >
           Mine only
         </button>
@@ -107,7 +163,10 @@ export default function LibraryClient({
               key={f.id}
               file={f}
               currentUserEmail={currentUserEmail}
+              staff={staff}
               onClaim={claim}
+              onAssign={isAdmin ? assign : undefined}
+              onMarkStale={isAdmin ? markStale : undefined}
               isAdmin={isAdmin}
             />
           ))}
