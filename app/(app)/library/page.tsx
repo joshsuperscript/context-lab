@@ -6,7 +6,13 @@ export default async function LibraryPage() {
   const session = await auth()
   const email = session?.user?.email!
 
-  const files = await queryContextFiles()
+  let files: Awaited<ReturnType<typeof queryContextFiles>> = []
+  try {
+    files = await queryContextFiles()
+  } catch (e) {
+    console.error('Notion query failed:', e)
+  }
+
   const admin = isApprover(email)
 
   return <LibraryClient files={files} currentUserEmail={email} isAdmin={admin} />

@@ -6,8 +6,17 @@ export default async function DashboardPage() {
   const session = await auth()
   const email = session?.user?.email!
 
-  const myFiles = await queryContextFiles({ assigned_to: email })
-  const allFiles = await queryContextFiles()
+  let myFiles: Awaited<ReturnType<typeof queryContextFiles>> = []
+  let allFiles: Awaited<ReturnType<typeof queryContextFiles>> = []
+
+  try {
+    ;[myFiles, allFiles] = await Promise.all([
+      queryContextFiles({ assigned_to: email }),
+      queryContextFiles(),
+    ])
+  } catch (e) {
+    console.error('Notion query failed:', e)
+  }
 
   const summary = allFiles.reduce(
     (acc, f) => { acc[f.status] = (acc[f.status] ?? 0) + 1; return acc },
