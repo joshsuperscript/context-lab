@@ -260,9 +260,42 @@ export function isApprover(email: string, section?: string): boolean {
 
 // ─── Page content (v5: retrieveMarkdown / updateMarkdown) ─────────────────────
 
+/**
+ * Convert Notion's proprietary markdown format to standard GFM.
+ * Handles: <table header-row="true">, Notion column blocks, etc.
+ */
+export function processNotionMarkdown(raw: string): string {
+  let md = raw
+
+  // Convert <table header-row="true"> ... </table> to GFM tables
+  md = md.replace(/<table[^>]*>([\s\S]*?)<\/table>/gi, (_, body) => {
+    const rows: string[][] = []
+    const rowMatches = body.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)
+    for (const rowMatch of rowMatches) {
+      const cells: string[] = []
+      const cellMatches = rowMatch[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/gi)
+      for (const cell of cellMatches) {
+        cells.push(cell[1].trim().replace(/\n/g, ' '))
+      }
+      if (cells.length) rows.push(cells)
+    }
+    if (!rows.length) return ''
+    const colCount = Math.max(...rows.map((r) => r.length))
+    const pad = (row: string[]) =>
+      '| ' + Array.from({ length: colCount }, (_, i) => row[i] ?? '').join(' | ') + ' |'
+    const separator = '| ' + Array(colCount).fill('---').join(' | ') + ' |'
+    return [pad(rows[0]), separator, ...rows.slice(1).map(pad)].join('\n')
+  })
+
+  // Strip leftover Notion-specific HTML tags (keep their text content)
+  md = md.replace(/<[^>]+>/g, '')
+
+  return md
+}
+
 export async function getPageMarkdown(pageId: string): Promise<string> {
   const resp = await notion.pages.retrieveMarkdown({ page_id: pageId })
-  return resp.markdown
+  return processNotionMarkdown(resp.markdown)
 }
 
 export async function updatePageContent(pageId: string, markdown: string): Promise<void> {

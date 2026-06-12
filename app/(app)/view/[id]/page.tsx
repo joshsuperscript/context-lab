@@ -3,6 +3,8 @@ import { getContextFile, getPageMarkdown, pathToBreadcrumb, displayStatus } from
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
+import rehypeRaw from 'rehype-raw'
 import { StatusBadge } from '@/components/StatusBadge'
 import { ArrowLeft, PenLine, MessageCircle } from 'lucide-react'
 
@@ -75,7 +77,7 @@ export default async function ViewPage({ params }: { params: Promise<{ id: strin
       <div className="flex-1 overflow-y-auto px-8 py-8 max-w-3xl">
         {content ? (
           <div className="prose prose-sm max-w-none prose-headings:font-semibold prose-headings:text-black prose-p:text-[#333] prose-code:text-[#00A3FF] prose-code:bg-[#F1F1F1] prose-code:px-1">
-            <ReactMarkdown>{content}</ReactMarkdown>
+            <ReactMarkdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeRaw]}>{content}</ReactMarkdown>
           </div>
         ) : (
           <div className="text-center py-16">
