@@ -5,13 +5,36 @@ const notion = new Client({ auth: process.env.NOTION_TOKEN })
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+// Canonical display states. Legacy DB values (draft_submitted, in_progress, approved, requested)
+// are all treated as 'assigned' if assigned_to is set, otherwise 'unassigned'.
 export type ContextFileStatus =
-  | 'requested'
-  | 'in_progress'
-  | 'draft_submitted'
-  | 'approved'
-  | 'published'
-  | 'stale'
+  | 'requested'      // unassigned, no content
+  | 'in_progress'    // assigned, working
+  | 'draft_submitted'// legacy — treat as in_progress
+  | 'approved'       // legacy — treat as published
+  | 'published'      // has content, live
+  | 'stale'          // published but flagged for update
+
+export function displayStatus(file: { status: ContextFileStatus; assigned_to: string | null }): 'unassigned' | 'assigned' | 'published' | 'stale' {
+  if (file.status === 'published') return 'published'
+  if (file.status === 'approved') return 'published'
+  if (file.status === 'stale') return 'stale'
+  if (file.assigned_to) return 'assigned'
+  return 'unassigned'
+}
+
+export function pathToBreadcrumb(path: string): string[] {
+  return path
+    .replace(/^context\//, '')
+    .replace(/\.md$/, '')
+    .split('/')
+    .map((seg) =>
+      seg
+        .split('-')
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(' ')
+    )
+}
 
 export type ContextFilePriority = 'high' | 'medium' | 'low'
 

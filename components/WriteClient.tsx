@@ -55,24 +55,19 @@ export default function WriteClient({
     }
   }
 
-  async function submitForReview() {
+  async function publish() {
     setSubmitting(true)
     try {
-      await save()
-      const res = await fetch(`/api/files/${file.id}`, {
-        method: 'PATCH',
+      const res = await fetch(`/api/files/${file.id}/publish`, {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status: 'draft_submitted',
-          submitted_by: currentUserEmail,
-          submitted_at: new Date().toISOString(),
-        }),
+        body: JSON.stringify({ content }),
       })
       if (!res.ok) throw new Error()
-      toast.success('Submitted for review!')
-      router.push('/library')
+      toast.success('Published!')
+      router.push(`/view/${file.id}`)
     } catch {
-      toast.error('Failed to submit')
+      toast.error('Failed to publish')
     } finally {
       setSubmitting(false)
     }
@@ -95,8 +90,6 @@ export default function WriteClient({
       setPhase('editing')
     }
   }
-
-  const canSubmit = file.status === 'in_progress' || file.status === 'requested' || file.status === 'stale'
 
   // ── Phase: choosing ───────────────────────────────────────────────────────
   if (phase === 'choosing') {
@@ -211,15 +204,13 @@ export default function WriteClient({
           >
             <Save size={12} /> {saving ? 'Saving…' : 'Save draft'}
           </button>
-          {canSubmit && (
-            <button
-              onClick={submitForReview}
-              disabled={submitting}
-              className="flex items-center gap-1.5 px-4 py-1.5 text-xs bg-black text-white rounded-full hover:bg-[#00A3FF] disabled:opacity-40 transition-colors"
-            >
-              <Send size={12} /> {submitting ? 'Submitting…' : 'Submit for review'}
-            </button>
-          )}
+          <button
+            onClick={publish}
+            disabled={submitting}
+            className="flex items-center gap-1.5 px-4 py-1.5 text-xs bg-black text-white rounded-full hover:bg-[#00A3FF] disabled:opacity-40 transition-colors"
+          >
+            <Send size={12} /> {submitting ? 'Publishing…' : 'Publish'}
+          </button>
         </div>
       </div>
 
